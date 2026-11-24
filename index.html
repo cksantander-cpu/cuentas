@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cuentas de la Casa</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .tabular { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-24">
+
+  <!-- Barra superior fija -->
+  <header class="sticky top-0 z-30 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 py-3">
+    <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center font-extrabold text-white shadow-lg shadow-blue-600/30">
+          $
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold leading-tight text-white">Cuentas de la Casa</h1>
+          <p id="syncStatus" class="text-[11px] text-emerald-400 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
+            Conectando nube...
+          </p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Selector de Mes -->
+        <input type="month" id="monthPicker" class="bg-slate-800 border border-slate-700 text-slate-100 text-xs sm:text-sm rounded-xl px-2.5 py-2 focus:outline-none focus:border-blue-500" />
+        
+        <!-- Botón copiar mes anterior -->
+        <button id="copyPrevMonthBtn" title="Copiar gastos y avanzar cuotas desde el mes anterior" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl transition">
+          Copiar mes ant.
+        </button>
+
+        <!-- Selector de Perfil -->
+        <select id="roleSelect" class="bg-slate-800 border border-slate-700 text-slate-100 text-xs sm:text-sm rounded-xl px-2.5 py-2 focus:outline-none focus:border-blue-500">
+          <option value="admin">Admin (César)</option>
+          <option value="participant">Vista Participante</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Barra de Integrantes + Persona Extra -->
+    <div class="max-w-5xl mx-auto mt-3 pt-2.5 border-t border-slate-800/80 flex items-center gap-2 overflow-x-auto pb-1">
+      <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold shrink-0">Integrantes:</span>
+      <div id="membersBar" class="flex items-center gap-1.5 shrink-0"></div>
+      <button id="openExtraModalBtn" class="shrink-0 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 text-xs font-semibold px-3 py-1.5 rounded-full transition">
+        + Persona extra
+      </button>
+    </div>
+  </header>
+
+  <!-- Navegación por Pestañas -->
+  <nav class="max-w-5xl mx-auto px-4 mt-4">
+    <div class="grid grid-cols-4 gap-1.5 bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
+      <button data-tab="resumen" class="tab-btn bg-blue-600 text-white text-xs sm:text-sm font-semibold py-2.5 px-2 rounded-xl transition">
+        Resumen &amp; WA
+      </button>
+      <button data-tab="cencosud" class="tab-btn text-slate-400 hover:text-white text-xs sm:text-sm font-semibold py-2.5 px-2 rounded-xl transition">
+        Cencosud
+      </button>
+      <button data-tab="servicios" class="tab-btn text-slate-400 hover:text-white text-xs sm:text-sm font-semibold py-2.5 px-2 rounded-xl transition">
+        Servicios/Pers.
+      </button>
+      <button data-tab="ajustes" class="tab-btn text-slate-400 hover:text-white text-xs sm:text-sm font-semibold py-2.5 px-2 rounded-xl transition">
+        Santander
+      </button>
+    </div>
+  </nav>
+
+  <!-- Contenido Principal -->
+  <main class="max-w-5xl mx-auto px-4 mt-4 space-y-4">
+
+    <!-- PESTAÑA 1: RESUMEN EJECUTIVO Y WHATSAPP -->
+    <section id="tab-resumen" class="space-y-4">
+      <!-- KPIs -->
+      <div id="kpiGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
+
+      <!-- Tabla Resumen Ejecutivo -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div>
+            <h2 class="text-base font-bold text-white">Resumen Ejecutivo del Mes</h2>
+            <p class="text-xs text-slate-400">Consolidado por persona para transferencia a César</p>
+          </div>
+          <button id="copyGlobalWaBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3.5 py-2 rounded-xl shadow transition">
+            Copiar resumen general WA
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400 text-[11px] uppercase">
+                <th class="py-2.5 pr-2">Persona</th>
+                <th class="py-2.5 px-2 text-right">Cencosud</th>
+                <th class="py-2.5 px-2 text-right">Intereses</th>
+                <th class="py-2.5 px-2 text-right">Serv./Pers.</th>
+                <th class="py-2.5 px-2 text-right">Total</th>
+                <th class="py-2.5 px-2 text-center">Estado</th>
+                <th class="py-2.5 pl-2 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="summaryBody" class="divide-y divide-slate-800/80"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tarjetas Individuales de Cobro WhatsApp -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div class="mb-3">
+          <h3 class="text-base font-bold text-white">Mensajes Individuales para WhatsApp</h3>
+          <p class="text-xs text-slate-400">Listos con desglose claro y tus datos de Banco Santander</p>
+        </div>
+        <div id="waCardsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+      </div>
+    </section>
+
+    <!-- PESTAÑA 2: TARJETA CENCOSUD E INTERESES -->
+    <section id="tab-cencosud" class="hidden space-y-4">
+      <!-- Formulario Movimientos Cencosud -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h2 class="text-base font-bold text-white">1. Movimientos Cencosud (Servipag)</h2>
+          <span id="badgeCencMov" class="bg-blue-500/15 text-blue-300 border border-blue-500/30 text-xs font-semibold px-3 py-1 rounded-full tabular">
+            Movimientos: $0
+          </span>
+        </div>
+
+        <form id="cencForm" class="space-y-3">
+          <input type="hidden" id="cencEditId" value="" />
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div class="sm:col-span-2">
+              <label class="block text-xs text-slate-400 mb-1">Descripción del movimiento</label>
+              <input type="text" id="cencDesc" placeholder="Ej: Celular Tía Maigo / Compra súper / Javier" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Monto mes ($ CLP)</label>
+              <input type="number" id="cencAmount" min="1" step="1" placeholder="25000" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Tipo de reparto</label>
+              <select id="cencMode" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                <option value="single">Directo a 1 persona</option>
+                <option value="split">Dividido en partes iguales</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Cuota actual (opc.)</label>
+              <input type="number" id="cencCur" min="1" placeholder="Ej: 3" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Total cuotas (opc.)</label>
+              <input type="number" id="cencTot" min="1" placeholder="Ej: 10" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            </div>
+            <div class="col-span-2 flex items-end">
+              <div id="cencLivePreview" class="text-xs text-blue-300 bg-blue-950/50 border border-blue-800/60 rounded-xl px-3 py-2 w-full">
+                Selecciona quiénes pagan este movimiento abajo.
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs text-slate-400 mb-1.5">¿Quién(es) pagan este movimiento?</label>
+            <div id="cencChecks" class="flex flex-wrap gap-2"></div>
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <button type="submit" id="cencSubmitBtn" class="bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+              Agregar movimiento
+            </button>
+            <button type="button" id="cencCancelEditBtn" class="hidden bg-slate-700 hover:bg-slate-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+              Cancelar edición
+            </button>
+          </div>
+        </form>
+
+        <!-- Carga rápida desde captura -->
+        <div class="mt-4 pt-4 border-t border-slate-800">
+          <label class="block text-xs font-semibold text-slate-300 mb-1">
+            Carga rápida desde captura de movimientos (1 por línea: <span class="text-blue-400">Descripción;Monto;Persona(s)</span>)
+          </label>
+          <textarea id="bulkCencText" rows="3" placeholder="Ejemplo:&#10;Celular Tía Maigo;25000;Maigo&#10;Compra súper común;48000;Menita, Mario, Javier" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"></textarea>
+          <button type="button" id="bulkCencBtn" class="mt-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold px-3.5 py-2 rounded-xl transition">
+            Importar líneas a Cencosud
+          </button>
+        </div>
+      </div>
+
+      <!-- Formulario Intereses Cencosud -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h2 class="text-base font-bold text-white">2. Intereses y Cargos Tarjeta Cencosud</h2>
+          <span id="badgeCencInt" class="bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-semibold px-3 py-1 rounded-full tabular">
+            Intereses: $0
+          </span>
+        </div>
+
+        <form id="intForm" class="space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Concepto de interés / cargo</label>
+              <input type="text" id="intDesc" placeholder="Ej: Interés facturación / Mantención" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Monto ($ CLP)</label>
+              <input type="number" id="intAmount" min="1" step="1" placeholder="8500" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Regla de reparto</label>
+              <select id="intRule" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                <option value="proportional">Proporcional al consumo en Cencosud</option>
+                <option value="equal">Partes iguales entre seleccionados</option>
+                <option value="single">Directo a 1 persona</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="intChecksWrap" class="hidden">
+            <label class="block text-xs text-slate-400 mb-1.5">Selecciona participantes:</label>
+            <div id="intChecks" class="flex flex-wrap gap-2"></div>
+          </div>
+
+          <button type="submit" class="bg-amber-600 hover:bg-amber-500 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+            Registrar interés / cargo
+          </button>
+        </form>
+      </div>
+
+      <!-- Listado de Movimientos e Intereses Cencosud -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4">
+        <div>
+          <h3 class="text-sm font-bold text-white mb-2">Detalle Movimientos Cencosud</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs sm:text-sm">
+              <thead>
+                <tr class="border-b border-slate-800 text-slate-400 text-[11px] uppercase">
+                  <th class="py-2">Descripción</th>
+                  <th class="py-2">Cuota</th>
+                  <th class="py-2">Responsable(s)</th>
+                  <th class="py-2 text-right">Monto</th>
+                  <th class="py-2 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="cencTableBody" class="divide-y divide-slate-800/80"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-slate-800">
+          <h3 class="text-sm font-bold text-white mb-2">Detalle Intereses / Cargos Cencosud</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs sm:text-sm">
+              <thead>
+                <tr class="border-b border-slate-800 text-slate-400 text-[11px] uppercase">
+                  <th class="py-2">Concepto</th>
+                  <th class="py-2">Reparto</th>
+                  <th class="py-2 text-right">Monto</th>
+                  <th class="py-2 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="intTableBody" class="divide-y divide-slate-800/80"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PESTAÑA 3: SERVICIOS COMPARTIDOS Y CUENTAS PERSONALES -->
+    <section id="tab-servicios" class="hidden space-y-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <h2 class="text-base font-bold text-white mb-1">Servicios Flexibles y Cuentas Personales</h2>
+        <p class="text-xs text-slate-400 mb-3">En servicios como Luz o Internet Mundo, desmarca al que compró cosas extra y queda libre este mes.</p>
+
+        <form id="srvForm" class="space-y-3">
+          <input type="hidden" id="srvEditId" value="" />
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Nombre de la cuenta</label>
+              <input type="text" id="srvName" placeholder="Ej: Luz / Internet Mundo / Celular Menita" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Tipo de cuenta</label>
+              <select id="srvType" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                <option value="shared">Servicio compartido (quiénes entran este mes)</option>
+                <option value="personal">Cuenta personal (100% a una persona)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Monto boleta ($ CLP)</label>
+              <input type="number" id="srvAmount" min="1" step="1" placeholder="42000" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            </div>
+          </div>
+
+          <div>
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+              <label class="text-xs text-slate-400">Participantes activos en este gasto:</label>
+              <span id="srvLiveSplit" class="text-xs font-semibold text-emerald-400 tabular">Por persona: $0</span>
+            </div>
+            <div id="srvChecks" class="flex flex-wrap gap-2"></div>
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <button type="submit" id="srvSubmitBtn" class="bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+              Guardar cuenta
+            </button>
+            <button type="button" id="srvCancelEditBtn" class="hidden bg-slate-700 hover:bg-slate-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+              Cancelar edición
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <h3 class="text-sm font-bold text-white mb-2">Cuentas Registradas en el Mes</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs sm:text-sm">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400 text-[11px] uppercase">
+                <th class="py-2">Cuenta</th>
+                <th class="py-2">Tipo</th>
+                <th class="py-2">Participan este mes</th>
+                <th class="py-2 text-right">Cuota c/u</th>
+                <th class="py-2 text-right">Total</th>
+                <th class="py-2 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="srvTableBody" class="divide-y divide-slate-800/80"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PESTAÑA 4: DATOS BANCO SANTANDER -->
+    <section id="tab-ajustes" class="hidden space-y-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <h2 class="text-base font-bold text-white mb-1">Datos de Transferencia — Banco Santander</h2>
+        <p class="text-xs text-slate-400 mb-3">Se incluyen automáticamente al final de cada mensaje de cobro por WhatsApp.</p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Nombre Titular</label>
+            <input type="text" id="bankHolder" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">RUT</label>
+            <input type="text" id="bankRut" placeholder="12.345.678-9" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Banco</label>
+            <input type="text" id="bankName" value="Banco Santander" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Tipo de Cuenta</label>
+            <input type="text" id="bankType" placeholder="Cuenta Corriente / Vista" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Número de Cuenta</label>
+            <input type="text" id="bankNumber" placeholder="00-000-00000-0" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Correo comprobante</label>
+            <input type="email" id="bankEmail" placeholder="correo@ejemplo.cl" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+          </div>
+        </div>
+
+        <button id="saveBankBtn" class="mt-4 bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+          Guardar datos Banco Santander
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal + Persona Extra -->
+  <div id="extraModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-white">Gestionar Personas Extra</h3>
+        <button id="closeExtraModalBtn" class="text-slate-400 hover:text-white text-sm font-bold px-2 py-1">✕</button>
+      </div>
+
+      <div class="flex gap-2">
+        <input type="text" id="newExtraName" placeholder="Ej: Tía Maigo, Primo..." class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+        <button id="addExtraBtn" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-xl">
+          Agregar
+        </button>
+      </div>
+
+      <div>
+        <p class="text-xs text-slate-400 mb-2">Personas extra agregadas (puedes quitarlas cuando quieras):</p>
+        <div id="extraMembersList" class="flex flex-wrap gap-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notificación flotante (reemplaza alert) -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 bg-slate-800 border border-slate-700 text-white text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-xl opacity-0 pointer-events-none transition-opacity duration-200"></div>
+
+  <!-- Lógica de App + Persistencia Firebase y Local -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const LOCAL_CACHE_KEY = "cuentas_casa_canvas_v3";
+
+    const defaultState = {
+      activeMonth: "2026-11",
+      role: "admin",
+      bank: {
+        holder: "César",
+        rut: "",
+        bankName: "Banco Santander",
+        accountType: "Cuenta",
+        accountNumber: "",
+        email: ""
+      },
+      members: [
+        { id: "cesar", name: "César", isAdmin: true, isExtra: false },
+        { id: "menita", name: "Mamá Menita", isAdmin: false, isExtra: false },
+        { id: "mario", name: "Mario", isAdmin: false, isExtra: false },
+        { id: "javier", name: "Javier", isAdmin: false, isExtra: false },
+        { id: "maigo", name: "Tía Maigo", isAdmin: false, isExtra: true }
+      ],
+      months: {
+        "2026-11": {
+          cencosudItems: [
+            {
+              id: "c1",
+              desc: "Celular Tía Maigo",
+              amount: 25000,
+              mode: "single",
+              participants: ["maigo"],
+              instCur: 3,
+              instTot: 10
+            },
+            {
+              id: "c2",
+              desc: "Compras en común casa",
+              amount: 60000,
+              mode: "split",
+              participants: ["menita", "mario", "javier"],
+              instCur: null,
+              instTot: null
+            }
+          ],
+          interestItems: [
+            {
+              id: "i1",
+              desc: "Interés y mantención Cencosud",
+              amount: 8500,
+              rule: "proportional",
+              participants: []
+            }
+          ],
+          services: [
+            {
+              id: "s1",
+              name: "Luz",
+              type: "shared",
+              amount: 42000,
+              participants: ["cesar", "menita", "mario", "javier"]
+            },
+            {
+              id: "s2",
+              name: "Internet Mundo",
+              type: "shared",
+              amount: 24000,
+              participants: ["cesar", "menita", "mario", "javier"]
+            },
+            {
+              id: "s3",
+              name: "Celular Mamá Menita",
+              type: "personal",
+              amount: 11990,
+              participants: ["menita"]
+            },
+            {
+              id: "s4",
+              name: "Celular Mario",
+              type: "personal",
+              amount: 11990,
+              participants: ["mario"]
+            }
+          ],
+          paidStatus: {}
+        }
+      }
+    };
+
+    let state = loadLocalCache();
+    let db = null;
+    let auth = null;
+    let currentUser = null;
+    let isRemoteApplying = false;
+
+    function loadLocalCache() {
+      try {
+        const raw = window.localStorage.getItem(LOCAL_CACHE_KEY);
+        if (!raw) return structuredClone(defaultState);
+        const parsed = JSON.parse(raw);
+        return { ...structuredClone(defaultState), ...parsed };
+      } catch {
+        return structuredClone(defaultState);
+      }
+    }
+
+    function saveLocalCache() {
+      try {
+        window.localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(state));
+      } catch {}
+    }
+
+    // Inicialización Firebase (Firestore privado del usuario)
+    async function initCloudSync() {
+      const statusEl = document.getElementById("syncStatus");
+      try {
+        if (typeof __firebase_config === "undefined") {
+          statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block"></span> Guardado local activo`;
+          return;
+        }
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const appId = typeof __app_id !== "undefined" ? __app_id : "cuentas-de-la-casa";
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+
+        if (typeof __initial_auth_token !== "undefined" && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+
+        onAuthStateChanged(auth, (user) => {
+          currentUser = user;
+          if (!user) return;
+          statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span> Sincronizado en la nube`;
+
+          const stateDocRef = doc(db, "artifacts", appId, "users", user.uid, "cuentas_casa", "estado_principal");
+          onSnapshot(
+            stateDocRef,
+            (snap) => {
+              if (snap.exists()) {
+                const remoteData = snap.data();
+                if (remoteData && remoteData.payload) {
+                  isRemoteApplying = true;
+                  state = { ...structuredClone(defaultState), ...JSON.parse(remoteData.payload) };
+                  saveLocalCache();
+                  renderAll();
+                  isRemoteApplying = false;
+                }
+              } else {
+                persistState();
+              }
+            },
+            () => {
+              statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span> Modo local (sin conexión nube)`;
+            }
+          );
+        });
+      } catch {
+        statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block"></span> Guardado local activo`;
+      }
+    }
+
+    async function persistState() {
+      saveLocalCache();
+      if (isRemoteApplying || !db || !currentUser) return;
+      try {
+        const appId = typeof __app_id !== "undefined" ? __app_id : "cuentas-de-la-casa";
+        const stateDocRef = doc(db, "artifacts", appId, "users", currentUser.uid, "cuentas_casa", "estado_principal");
+        await setDoc(stateDocRef, {
+          payload: JSON.stringify(state),
+          updatedAt: Date.now()
+        });
+      } catch {}
+    }
+
+    function ensureMonth(ym) {
+      if (!state.months[ym]) {
+        state.months[ym] = {
+          cencosudItems: [],
+          interestItems: [],
+          services: [],
+          paidStatus: {}
+        };
+      }
+      if (!Array.isArray(state.months[ym].interestItems)) state.months[ym].interestItems = [];
+      if (!Array.isArray(state.months[ym].cencosudItems)) state.months[ym].cencosudItems = [];
+      if (!Array.isArray(state.months[ym].services)) state.months[ym].services = [];
+      if (!state.months[ym].paidStatus) state.months[ym].paidStatus = {};
+      return state.months[ym];
+    }
+
+    function clp(n) {
+      return "$" + Math.round(Number(n) || 0).toLocaleString("es-CL");
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.remove("opacity-0");
+      t.classList.add("opacity-100");
+      setTimeout(() => {
+        t.classList.remove("opacity-100");
+        t.classList.add("opacity-0");
+      }, 2200);
+    }
+
+    function copyTextSafe(text) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand("copy");
+        showToast("Copiado al portapapeles para WhatsApp");
+      } catch {
+        showToast("No se pudo copiar automáticamente");
+      }
+      document.body.removeChild(ta);
+    }
+
+    function computeBreakdown(ym) {
+      const m = ensureMonth(ym);
+      const map = {};
+      state.members.forEach((mem) => {
+        map[mem.id] = {
+          member: mem,
+          cencMov: 0,
+          cencInt: 0,
+          services: 0,
+          lines: []
+        };
+      });
+
+      // 1. Movimientos Cencosud
+      m.cencosudItems.forEach((item) => {
+        const parts = (item.participants || []).filter((id) => map[id]);
+        if (!parts.length) return;
+        const instTxt = item.instCur && item.instTot ? ` (Cuota ${item.instCur}/${item.instTot})` : "";
+        if (item.mode === "single") {
+          const pid = parts[0];
+          const amt = Number(item.amount) || 0;
+          map[pid].cencMov += amt;
+          map[pid].lines.push({ label: `Cencosud: ${item.desc}${instTxt}`, amount: amt });
+        } else {
+          const share = Math.round((Number(item.amount) || 0) / parts.length);
+          parts.forEach((pid) => {
+            map[pid].cencMov += share;
+            map[pid].lines.push({ label: `Cencosud (${parts.length} partes): ${item.desc}${instTxt}`, amount: share });
+          });
+        }
+      });
+
+      // 2. Intereses Cencosud
+      const totalCencMov = Object.values(map).reduce((acc, x) => acc + x.cencMov, 0);
+      m.interestItems.forEach((intItem) => {
+        const amt = Number(intItem.amount) || 0;
+        if (!amt) return;
+        if (intItem.rule === "single") {
+          const pid = (intItem.participants || [])[0];
+          if (pid && map[pid]) {
+            map[pid].cencInt += amt;
+            map[pid].lines.push({ label: `Interés/Cargo: ${intItem.desc}`, amount: amt });
+          }
+        } else if (intItem.rule === "equal") {
+          const parts = (intItem.participants || []).filter((id) => map[id]);
+          if (!parts.length) return;
+          const share = Math.round(amt / parts.length);
+          parts.forEach((pid) => {
+            map[pid].cencInt += share;
+            map[pid].lines.push({ label: `Interés/Cargo (${parts.length} partes): ${intItem.desc}`, amount: share });
+          });
+        } else {
+          if (totalCencMov > 0) {
+            Object.values(map).forEach((b) => {
+              if (b.cencMov > 0) {
+                const share = Math.round((amt * b.cencMov) / totalCencMov);
+                b.cencInt += share;
+                b.lines.push({ label: `Interés proporcional Cencosud: ${intItem.desc}`, amount: share });
+              }
+            });
+          }
+        }
+      });
+
+      // 3. Servicios y Cuentas Personales
+      m.services.forEach((srv) => {
+        const parts = (srv.participants || []).filter((id) => map[id]);
+        if (!parts.length) return;
+        if (srv.type === "personal") {
+          const pid = parts[0];
+          const amt = Number(srv.amount) || 0;
+          map[pid].services += amt;
+          map[pid].lines.push({ label: srv.name, amount: amt });
+        } else {
+          const share = Math.round((Number(srv.amount) || 0) / parts.length);
+          parts.forEach((pid) => {
+            map[pid].services += share;
+            map[pid].lines.push({ label: `${srv.name} (entre ${parts.length})`, amount: share });
+          });
+        }
+      });
+
+      return map;
+    }
+
+    function buildWaMessage(memberId, breakdown) {
+      const b = breakdown[memberId];
+      const total = b.cencMov + b.cencInt + b.services;
+      const lines = b.lines.length
+        ? b.lines.map((l) => `• ${l.label}: ${clp(l.amount)}`).join("\n")
+        : "• Sin cargos registrados este mes";
+
+      const bankInfo = [
+        state.bank.holder ? `Titular: ${state.bank.holder}` : "",
+        state.bank.rut ? `RUT: ${state.bank.rut}` : "",
+        `${state.bank.bankName || "Banco Santander"} — ${state.bank.accountType || "Cuenta"}${state.bank.accountNumber ? " N° " + state.bank.accountNumber : ""}`,
+        state.bank.email ? `Correo: ${state.bank.email}` : ""
+      ].filter(Boolean).join("\n");
+
+      return `Hola ${b.member.name}, aquí va el detalle de las cuentas (${state.activeMonth}):\n\n${lines}\n\n*Total a transferir: ${clp(total)}*\n\nDatos transferencia:\n${bankInfo}`;
+    }
+
+    function renderAll() {
+      const ym = state.activeMonth;
+      const m = ensureMonth(ym);
+      const breakdown = computeBreakdown(ym);
+
+      document.getElementById("monthPicker").value = ym;
+      document.getElementById("roleSelect").value = state.role;
+
+      // Barra de integrantes
+      const membersBar = document.getElementById("membersBar");
+      membersBar.innerHTML = "";
+      state.members.forEach((mem) => {
+        const chip = document.createElement("span");
+        chip.className = mem.isAdmin
+          ? "bg-slate-800 text-blue-300 border border-slate-700 text-xs font-medium px-2.5 py-1 rounded-full"
+          : "bg-slate-800 text-slate-200 border border-slate-700 text-xs font-medium px-2.5 py-1 rounded-full";
+        chip.textContent = mem.name + (mem.isAdmin ? " (Admin)" : "");
+        membersBar.appendChild(chip);
+      });
+
+      // KPIs
+      const totalCencMov = m.cencosudItems.reduce((a, i) => a + (Number(i.amount) || 0), 0);
+      const totalCencInt = m.interestItems.reduce((a, i) => a + (Number(i.amount) || 0), 0);
+      const totalSrv = m.services.reduce((a, s) => a + (Number(s.amount) || 0), 0);
+      const grandTotal = totalCencMov + totalCencInt + totalSrv;
+
+      let toCollect = 0;
+      let collected = 0;
+      state.members.forEach((mem) => {
+        if (mem.isAdmin) return;
+        const sum = breakdown[mem.id].cencMov + breakdown[mem.id].cencInt + breakdown[mem.id].services;
+        toCollect += sum;
+        if (m.paidStatus[mem.id]) collected += sum;
+      });
+
+      document.getElementById("kpiGrid").innerHTML = `
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p class="text-xs text-slate-400">Total Cuentas del Mes</p>
+          <p class="text-xl font-extrabold text-white mt-1 tabular">${clp(grandTotal)}</p>
+          <p class="text-[11px] text-slate-400 mt-1">Cencosud ${clp(totalCencMov + totalCencInt)} · Serv/Pers ${clp(totalSrv)}</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p class="text-xs text-slate-400">Total a Recaudar (Transferencias)</p>
+          <p class="text-xl font-extrabold text-blue-400 mt-1 tabular">${clp(toCollect)}</p>
+          <p class="text-[11px] text-slate-400 mt-1">Parte César: ${clp(breakdown.cesar ? breakdown.cesar.cencMov + breakdown.cesar.cencInt + breakdown.cesar.services : 0)}</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p class="text-xs text-slate-400">Estado Recaudación</p>
+          <p class="text-xl font-extrabold text-emerald-400 mt-1 tabular">${clp(collected)}</p>
+          <p class="text-[11px] text-amber-400 mt-1">Pendiente por transferir: ${clp(Math.max(0, toCollect - collected))}</p>
+        </div>
+      `;
+
+      // Tabla Resumen Ejecutivo & Cards WA
+      const summaryBody = document.getElementById("summaryBody");
+      const waCardsGrid = document.getElementById("waCardsGrid");
+      summaryBody.innerHTML = "";
+      waCardsGrid.innerHTML = "";
+
+      state.members.forEach((mem) => {
+        const b = breakdown[mem.id];
+        const total = b.cencMov + b.cencInt + b.services;
+        const paid = !!m.paidStatus[mem.id];
+
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-800/40";
+        tr.innerHTML = `
+          <td class="py-3 pr-2 font-semibold text-white">${mem.name}</td>
+          <td class="py-3 px-2 text-right tabular text-slate-300">${clp(b.cencMov)}</td>
+          <td class="py-3 px-2 text-right tabular text-slate-300">${clp(b.cencInt)}</td>
+          <td class="py-3 px-2 text-right tabular text-slate-300">${clp(b.services)}</td>
+          <td class="py-3 px-2 text-right tabular font-bold text-white">${clp(total)}</td>
+          <td class="py-3 px-2 text-center">
+            ${mem.isAdmin
+              ? `<span class="text-[11px] text-slate-400">Paga todo</span>`
+              : `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${paid ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30" : "bg-amber-500/15 text-amber-300 border border-amber-500/30"}">${paid ? "Pagado" : "Pendiente"}</span>`
+            }
+          </td>
+          <td class="py-3 pl-2 text-right whitespace-nowrap">
+            ${mem.isAdmin
+              ? ""
+              : `<button data-toggle-paid="${mem.id}" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg mr-1">${paid ? "Pendiente" : "Pagado"}</button>
+                 <button data-copy-wa="${mem.id}" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold px-2.5 py-1.5 rounded-lg">Copiar WA</button>`
+            }
+          </td>
+        `;
+        summaryBody.appendChild(tr);
+
+        if (!mem.isAdmin) {
+          const msg = buildWaMessage(mem.id, breakdown);
+          const card = document.createElement("div");
+          card.className = "bg-slate-950 border border-slate-800 rounded-xl p-3.5 flex flex-col justify-between gap-2.5";
+          card.innerHTML = `
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <h4 class="text-sm font-bold text-white">${mem.name}</h4>
+                <p class="text-xs text-blue-400 font-semibold tabular">Total: ${clp(total)}</p>
+              </div>
+              <button data-copy-wa="${mem.id}" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
+                Copiar WhatsApp
+              </button>
+            </div>
+            <pre class="bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-[11px] text-slate-300 whitespace-pre-wrap font-sans max-h-48 overflow-y-auto">${msg}</pre>
+          `;
+          waCardsGrid.appendChild(card);
+        }
+      });
+
+      // Tabla Cencosud
+      document.getElementById("badgeCencMov").textContent = `Movimientos: ${clp(totalCencMov)}`;
+      const cencTableBody = document.getElementById("cencTableBody");
+      cencTableBody.innerHTML = m.cencosudItems.length
+        ? ""
+        : `<tr><td colspan="5" class="py-4 text-center text-slate-500 text-xs">Sin movimientos Cencosud registrados este mes.</td></tr>`;
+
+      m.cencosudItems.forEach((item) => {
+        const names = (item.participants || [])
+          .map((id) => state.members.find((x) => x.id === id)?.name)
+          .filter(Boolean)
+          .join(", ");
+        const inst = item.instCur && item.instTot ? `Cuota ${item.instCur}/${item.instTot}` : "—";
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="py-2.5 font-medium text-white">${item.desc}</td>
+          <td class="py-2.5 text-slate-300">${inst}</td>
+          <td class="py-2.5 text-slate-300">${item.mode === "single" ? names : "Entre: " + names}</td>
+          <td class="py-2.5 text-right tabular font-semibold text-white">${clp(item.amount)}</td>
+          <td class="py-2.5 text-right whitespace-nowrap">
+            <button data-edit-cenc="${item.id}" class="text-blue-400 hover:text-blue-300 text-xs font-semibold mr-2">Editar</button>
+            <button data-del-cenc="${item.id}" class="text-rose-400 hover:text-rose-300 text-xs font-semibold">Borrar</button>
+          </td>
+        `;
+        cencTableBody.appendChild(tr);
+      });
+
+      // Tabla Intereses
+      document.getElementById("badgeCencInt").textContent = `Intereses: ${clp(totalCencInt)}`;
+      const intTableBody = document.getElementById("intTableBody");
+      intTableBody.innerHTML = m.interestItems.length
+        ? ""
+        : `<tr><td colspan="4" class="py-4 text-center text-slate-500 text-xs">Sin intereses o cargos registrados este mes.</td></tr>`;
+
+      m.interestItems.forEach((item) => {
+        let ruleLabel = "Proporcional al consumo Cencosud";
+        if (item.rule === "equal") {
+          const names = (item.participants || []).map((id) => state.members.find((x) => x.id === id)?.name).filter(Boolean).join(", ");
+          ruleLabel = `Partes iguales (${names})`;
+        } else if (item.rule === "single") {
+          const name = state.members.find((x) => x.id === (item.participants || [])[0])?.name || "";
+          ruleLabel = `Directo: ${name}`;
+        }
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="py-2.5 font-medium text-white">${item.desc}</td>
+          <td class="py-2.5 text-slate-300">${ruleLabel}</td>
+          <td class="py-2.5 text-right tabular font-semibold text-amber-300">${clp(item.amount)}</td>
+          <td class="py-2.5 text-right">
+            <button data-del-int="${item.id}" class="text-rose-400 hover:text-rose-300 text-xs font-semibold">Borrar</button>
+          </td>
+        `;
+        intTableBody.appendChild(tr);
+      });
+
+      // Tabla Servicios
+      const srvTableBody = document.getElementById("srvTableBody");
+      srvTableBody.innerHTML = m.services.length
+        ? ""
+        : `<tr><td colspan="6" class="py-4 text-center text-slate-500 text-xs">Sin servicios ni cuentas personales registradas este mes.</td></tr>`;
+
+      m.services.forEach((srv) => {
+        const parts = (srv.participants || []).filter((id) => state.members.some((x) => x.id === id));
+        const names = parts.map((id) => state.members.find((x) => x.id === id)?.name).join(", ");
+        const each = parts.length ? Math.round((Number(srv.amount) || 0) / parts.length) : 0;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="py-2.5 font-medium text-white">${srv.name}</td>
+          <td class="py-2.5 text-slate-300">${srv.type === "personal" ? "Personal" : "Compartido"}</td>
+          <td class="py-2.5 text-slate-300">${names || "Ninguno"}</td>
+          <td class="py-2.5 text-right tabular text-emerald-300">${clp(each)}</td>
+          <td class="py-2.5 text-right tabular font-semibold text-white">${clp(srv.amount)}</td>
+          <td class="py-2.5 text-right whitespace-nowrap">
+            <button data-edit-srv="${srv.id}" class="text-blue-400 hover:text-blue-300 text-xs font-semibold mr-2">Editar</button>
+            <button data-del-srv="${srv.id}" class="text-rose-400 hover:text-rose-300 text-xs font-semibold">Borrar</button>
+          </td>
+        `;
+        srvTableBody.appendChild(tr);
+      });
+
+      renderCheckboxes();
+      renderBankSettings();
+      renderExtraModalList();
+    }
+
+    function renderCheckboxes() {
+      const cencMode = document.getElementById("cencMode").value;
+      const intRule = document.getElementById("intRule").value;
+      const srvType = document.getElementById("srvType").value;
+
+      document.getElementById("intChecksWrap").classList.toggle("hidden", intRule === "proportional");
+
+      // Preservar selección actual si hay
+      const prevCenc = new Set(Array.from(document.querySelectorAll('input[name="cencPart"]:checked')).map((x) => x.value));
+      const prevSrv = new Set(Array.from(document.querySelectorAll('input[name="srvPart"]:checked')).map((x) => x.value));
+
+      const cencChecks = document.getElementById("cencChecks");
+      const intChecks = document.getElementById("intChecks");
+      const srvChecks = document.getElementById("srvChecks");
+
+      cencChecks.innerHTML = "";
+      intChecks.innerHTML = "";
+      srvChecks.innerHTML = "";
+
+      state.members.forEach((mem) => {
+        // Cencosud
+        const l1 = document.createElement("label");
+        l1.className = "inline-flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-full text-xs cursor-pointer select-none";
+        const i1 = document.createElement("input");
+        i1.type = cencMode === "single" ? "radio" : "checkbox";
+        i1.name = "cencPart";
+        i1.value = mem.id;
+        i1.className = "accent-blue-500";
+        if (prevCenc.size ? prevCenc.has(mem.id) : (cencMode === "single" ? mem.id === "maigo" : !mem.isAdmin)) {
+          i1.checked = true;
+        }
+        i1.addEventListener("change", updateLivePreviews);
+        l1.append(i1, document.createTextNode(mem.name));
+        cencChecks.appendChild(l1);
+
+        // Intereses
+        const l2 = document.createElement("label");
+        l2.className = "inline-flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-full text-xs cursor-pointer select-none";
+        const i2 = document.createElement("input");
+        i2.type = intRule === "single" ? "radio" : "checkbox";
+        i2.name = "intPart";
+        i2.value = mem.id;
+        i2.className = "accent-amber-500";
+        if (!mem.isAdmin && intRule === "equal") i2.checked = true;
+        if (mem.id === "menita" && intRule === "single") i2.checked = true;
+        l2.append(i2, document.createTextNode(mem.name));
+        intChecks.appendChild(l2);
+
+        // Servicios / Personales
+        const l3 = document.createElement("label");
+        l3.className = "inline-flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-full text-xs cursor-pointer select-none";
+        const i3 = document.createElement("input");
+        i3.type = srvType === "personal" ? "radio" : "checkbox";
+        i3.name = "srvPart";
+        i3.value = mem.id;
+        i3.className = "accent-emerald-500";
+        if (prevSrv.size ? prevSrv.has(mem.id) : (srvType === "personal" ? mem.id === "menita" : !mem.isExtra)) {
+          i3.checked = true;
+        }
+        i3.addEventListener("change", updateLivePreviews);
+        l3.append(i3, document.createTextNode(mem.name));
+        srvChecks.appendChild(l3);
+      });
+
+      updateLivePreviews();
+    }
+
+    function updateLivePreviews() {
+      // Cencosud preview
+      const cAmt = Number(document.getElementById("cencAmount").value) || 0;
+      const cMode = document.getElementById("cencMode").value;
+      const cParts = Array.from(document.querySelectorAll('input[name="cencPart"]:checked'));
+      const cPrev = document.getElementById("cencLivePreview");
+      if (!cParts.length || !cAmt) {
+        cPrev.textContent = "Ingresa monto y selecciona participante(s) para ver el cálculo.";
+      } else if (cMode === "single") {
+        cPrev.textContent = `Cargo directo de ${clp(cAmt)} a 1 persona.`;
+      } else {
+        cPrev.textContent = `Dividido entre ${cParts.length}: ${clp(Math.round(cAmt / cParts.length))} c/u.`;
+      }
+
+      // Servicios preview
+      const sAmt = Number(document.getElementById("srvAmount").value) || 0;
+      const sParts = Array.from(document.querySelectorAll('input[name="srvPart"]:checked'));
+      const sPrev = document.getElementById("srvLiveSplit");
+      if (!sParts.length || !sAmt) {
+        sPrev.textContent = "Por persona: $0";
+      } else {
+        sPrev.textContent = `Entre ${sParts.length}: ${clp(Math.round(sAmt / sParts.length))} c/u`;
+      }
+    }
+
+    function renderBankSettings() {
+      document.getElementById("bankHolder").value = state.bank.holder || "";
+      document.getElementById("bankRut").value = state.bank.rut || "";
+      document.getElementById("bankName").value = state.bank.bankName || "Banco Santander";
+      document.getElementById("bankType").value = state.bank.accountType || "";
+      document.getElementById("bankNumber").value = state.bank.accountNumber || "";
+      document.getElementById("bankEmail").value = state.bank.email || "";
+    }
+
+    function renderExtraModalList() {
+      const box = document.getElementById("extraMembersList");
+      box.innerHTML = "";
+      const extras = state.members.filter((m) => m.isExtra);
+      if (!extras.length) {
+        box.innerHTML = `<span class="text-xs text-slate-500">No hay personas extra agregadas.</span>`;
+        return;
+      }
+      extras.forEach((mem) => {
+        const pill = document.createElement("span");
+        pill.className = "inline-flex items-center gap-2 bg-slate-800 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-full";
+        pill.innerHTML = `${mem.name} <button data-remove-extra="${mem.id}" class="text-rose-400 hover:text-rose-300 font-bold">✕</button>`;
+        box.appendChild(pill);
+      });
+    }
+
+    // Navegación pestañas
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach((b) => {
+          b.classList.remove("bg-blue-600", "text-white");
+          b.classList.add("text-slate-400");
+        });
+        btn.classList.add("bg-blue-600", "text-white");
+        btn.classList.remove("text-slate-400");
+
+        const target = btn.dataset.tab;
+        ["resumen", "cencosud", "servicios", "ajustes"].forEach((id) => {
+          document.getElementById("tab-" + id).classList.toggle("hidden", id !== target);
+        });
+      });
+    });
+
+    // Cambio de mes y rol
+    document.getElementById("monthPicker").addEventListener("change", async (e) => {
+      if (!e.target.value) return;
+      state.activeMonth = e.target.value;
+      ensureMonth(state.activeMonth);
+      await persistState();
+      renderAll();
+    });
+
+    document.getElementById("roleSelect").addEventListener("change", async (e) => {
+      state.role = e.target.value;
+      await persistState();
+      renderAll();
+    });
+
+    // Copiar desde mes anterior (avanza cuotas automáticamente)
+    document.getElementById("copyPrevMonthBtn").addEventListener("click", async () => {
+      const [yStr, mStr] = state.activeMonth.split("-");
+      let y = Number(yStr);
+      let m = Number(mStr) - 1;
+      if (m < 1) { m = 12; y -= 1; }
+      const prevYm = `${y}-${String(m).padStart(2, "0")}`;
+
+      if (!state.months[prevYm]) {
+        showToast(`No hay datos guardados en ${prevYm}`);
+        return;
+      }
+
+      const prev = state.months[prevYm];
+      const curr = ensureMonth(state.activeMonth);
+
+      // Copiar servicios
+      prev.services.forEach((s) => {
+        curr.services.push({ ...structuredClone(s), id: "s_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6) });
+      });
+
+      // Copiar cuotas activas de Cencosud avanzando +1
+      prev.cencosudItems.forEach((c) => {
+        if (c.instCur && c.instTot && c.instCur < c.instTot) {
+          curr.cencosudItems.push({
+            ...structuredClone(c),
+            id: "c_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+            instCur: c.instCur + 1
+          });
+        }
+      });
+
+      await persistState();
+      renderAll();
+      showToast(`Copiado desde ${prevYm} (cuotas actualizadas)`);
+    });
+
+    // Eventos inputs en vivo
+    document.getElementById("cencMode").addEventListener("change", renderCheckboxes);
+    document.getElementById("intRule").addEventListener("change", renderCheckboxes);
+    document.getElementById("srvType").addEventListener("change", renderCheckboxes);
+    document.getElementById("cencAmount").addEventListener("input", updateLivePreviews);
+    document.getElementById("srvAmount").addEventListener("input", updateLivePreviews);
+
+    // Guardar / Editar Cencosud
+    document.getElementById("cencForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const editId = document.getElementById("cencEditId").value;
+      const desc = document.getElementById("cencDesc").value.trim();
+      const amount = Number(document.getElementById("cencAmount").value);
+      const mode = document.getElementById("cencMode").value;
+      const instCur = Number(document.getElementById("cencCur").value) || null;
+      const instTot = Number(document.getElementById("cencTot").value) || null;
+      const participants = Array.from(document.querySelectorAll('input[name="cencPart"]:checked')).map((x) => x.value);
+
+      if (!desc || !amount || !participants.length) {
+        showToast("Completa descripción, monto y participante.");
+        return;
+      }
+
+      const m = ensureMonth(state.activeMonth);
+      if (editId) {
+        const idx = m.cencosudItems.findIndex((x) => x.id === editId);
+        if (idx !== -1) {
+          m.cencosudItems[idx] = { id: editId, desc, amount, mode, participants, instCur, instTot };
+        }
+      } else {
+        m.cencosudItems.push({ id: "c_" + Date.now(), desc, amount, mode, participants, instCur, instTot });
+      }
+
+      resetCencForm();
+      await persistState();
+      renderAll();
+      showToast(editId ? "Movimiento actualizado" : "Movimiento agregado a Cencosud");
+    });
+
+    function resetCencForm() {
+      document.getElementById("cencForm").reset();
+      document.getElementById("cencEditId").value = "";
+      document.getElementById("cencSubmitBtn").textContent = "Agregar movimiento";
+      document.getElementById("cencCancelEditBtn").classList.add("hidden");
+    }
+
+    document.getElementById("cencCancelEditBtn").addEventListener("click", () => {
+      resetCencForm();
+      renderCheckboxes();
+    });
+
+    // Carga masiva desde captura Cencosud
+    document.getElementById("bulkCencBtn").addEventListener("click", async () => {
+      const raw = document.getElementById("bulkCencText").value.trim();
+      if (!raw) return;
+      const m = ensureMonth(state.activeMonth);
+      let count = 0;
+
+      raw.split("\n").forEach((line, idx) => {
+        const parts = line.split(";").map((s) => s.trim());
+        if (parts.length < 3) return;
+        const desc = parts[0];
+        const amount = Number(parts[1].replace(/[^0-9]/g, ""));
+        const names = parts[2].split(",").map((x) => x.trim().toLowerCase());
+        const matched = state.members
+          .filter((mem) => names.some((n) => mem.name.toLowerCase().includes(n)))
+          .map((mem) => mem.id);
+
+        if (desc && amount > 0 && matched.length > 0) {
+          m.cencosudItems.push({
+            id: "cb_" + Date.now() + "_" + idx,
+            desc,
+            amount,
+            mode: matched.length > 1 ? "split" : "single",
+            participants: matched,
+            instCur: null,
+            instTot: null
+          });
+          count++;
+        }
+      });
+
+      if (count > 0) {
+        document.getElementById("bulkCencText").value = "";
+        await persistState();
+        renderAll();
+        showToast(`${count} movimientos importados`);
+      } else {
+        showToast("Usa formato: Descripción;Monto;Nombre");
+      }
+    });
+
+    // Registrar Interés Cencosud
+    document.getElementById("intForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const desc = document.getElementById("intDesc").value.trim();
+      const amount = Number(document.getElementById("intAmount").value);
+      const rule = document.getElementById("intRule").value;
+      const participants = Array.from(document.querySelectorAll('input[name="intPart"]:checked')).map((x) => x.value);
+
+      if (!desc || !amount) return;
+      if (rule !== "proportional" && !participants.length) {
+        showToast("Selecciona participante(s)");
+        return;
+      }
+
+      const m = ensureMonth(state.activeMonth);
+      m.interestItems.push({ id: "i_" + Date.now(), desc, amount, rule, participants });
+      e.target.reset();
+      await persistState();
+      renderAll();
+      showToast("Interés / cargo registrado");
+    });
+
+    // Guardar / Editar Servicio o Cuenta Personal
+    document.getElementById("srvForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const editId = document.getElementById("srvEditId").value;
+      const name = document.getElementById("srvName").value.trim();
+      const type = document.getElementById("srvType").value;
+      const amount = Number(document.getElementById("srvAmount").value);
+      const participants = Array.from(document.querySelectorAll('input[name="srvPart"]:checked')).map((x) => x.value);
+
+      if (!name || !amount || !participants.length) {
+        showToast("Completa cuenta, monto y participantes.");
+        return;
+      }
+
+      const m = ensureMonth(state.activeMonth);
+      if (editId) {
+        const idx = m.services.findIndex((x) => x.id === editId);
+        if (idx !== -1) {
+          m.services[idx] = { id: editId, name, type, amount, participants };
+        }
+      } else {
+        m.services.push({ id: "s_" + Date.now(), name, type, amount, participants });
+      }
+
+      resetSrvForm();
+      await persistState();
+      renderAll();
+      showToast(editId ? "Cuenta actualizada" : "Cuenta guardada");
+    });
+
+    function resetSrvForm() {
+      document.getElementById("srvForm").reset();
+      document.getElementById("srvEditId").value = "";
+      document.getElementById("srvSubmitBtn").textContent = "Guardar cuenta";
+      document.getElementById("srvCancelEditBtn").classList.add("hidden");
+    }
+
+    document.getElementById("srvCancelEditBtn").addEventListener("click", () => {
+      resetSrvForm();
+      renderCheckboxes();
+    });
+
+    // Delegación de eventos en tablas y tarjetas
+    document.addEventListener("click", async (e) => {
+      const m = ensureMonth(state.activeMonth);
+
+      // Toggle Pagado / Pendiente
+      const paidId = e.target.dataset.togglePaid;
+      if (paidId) {
+        m.paidStatus[paidId] = !m.paidStatus[paidId];
+        await persistState();
+        renderAll();
+        return;
+      }
+
+      // Copiar WhatsApp individual
+      const waId = e.target.dataset.copyWa;
+      if (waId) {
+        const breakdown = computeBreakdown(state.activeMonth);
+        copyTextSafe(buildWaMessage(waId, breakdown));
+        return;
+      }
+
+      // Editar Cencosud
+      const editCencId = e.target.dataset.editCenc;
+      if (editCencId) {
+        const item = m.cencosudItems.find((x) => x.id === editCencId);
+        if (!item) return;
+        document.getElementById("cencEditId").value = item.id;
+        document.getElementById("cencDesc").value = item.desc;
+        document.getElementById("cencAmount").value = item.amount;
+        document.getElementById("cencMode").value = item.mode;
+        document.getElementById("cencCur").value = item.instCur || "";
+        document.getElementById("cencTot").value = item.instTot || "";
+        document.getElementById("cencSubmitBtn").textContent = "Actualizar movimiento";
+        document.getElementById("cencCancelEditBtn").classList.remove("hidden");
+        renderCheckboxes();
+        document.querySelectorAll('input[name="cencPart"]').forEach((inp) => {
+          inp.checked = (item.participants || []).includes(inp.value);
+        });
+        updateLivePreviews();
+        return;
+      }
+
+      // Borrar Cencosud
+      const delCencId = e.target.dataset.delCenc;
+      if (delCencId) {
+        m.cencosudItems = m.cencosudItems.filter((x) => x.id !== delCencId);
+        await persistState();
+        renderAll();
+        showToast("Movimiento eliminado");
+        return;
+      }
+
+      // Borrar Interés
+      const delIntId = e.target.dataset.delInt;
+      if (delIntId) {
+        m.interestItems = m.interestItems.filter((x) => x.id !== delIntId);
+        await persistState();
+        renderAll();
+        showToast("Interés eliminado");
+        return;
+      }
+
+      // Editar Servicio
+      const editSrvId = e.target.dataset.editSrv;
+      if (editSrvId) {
+        const srv = m.services.find((x) => x.id === editSrvId);
+        if (!srv) return;
+        document.getElementById("srvEditId").value = srv.id;
+        document.getElementById("srvName").value = srv.name;
+        document.getElementById("srvType").value = srv.type;
+        document.getElementById("srvAmount").value = srv.amount;
+        document.getElementById("srvSubmitBtn").textContent = "Actualizar cuenta";
+        document.getElementById("srvCancelEditBtn").classList.remove("hidden");
+        renderCheckboxes();
+        document.querySelectorAll('input[name="srvPart"]').forEach((inp) => {
+          inp.checked = (srv.participants || []).includes(inp.value);
+        });
+        updateLivePreviews();
+        return;
+      }
+
+      // Borrar Servicio
+      const delSrvId = e.target.dataset.delSrv;
+      if (delSrvId) {
+        m.services = m.services.filter((x) => x.id !== delSrvId);
+        await persistState();
+        renderAll();
+        showToast("Cuenta eliminada");
+        return;
+      }
+
+      // Quitar Persona Extra
+      const remExtraId = e.target.dataset.removeExtra;
+      if (remExtraId) {
+        state.members = state.members.filter((x) => x.id !== remExtraId);
+        await persistState();
+        renderAll();
+        showToast("Persona extra quitada");
+      }
+    });
+
+    // Copiar resumen general WhatsApp
+    document.getElementById("copyGlobalWaBtn").addEventListener("click", () => {
+      const breakdown = computeBreakdown(state.activeMonth);
+      const lines = state.members
+        .filter((mem) => !mem.isAdmin)
+        .map((mem) => {
+          const b = breakdown[mem.id];
+          return `• ${mem.name}: ${clp(b.cencMov + b.cencInt + b.services)}`;
+        });
+      copyTextSafe(`Resumen Cuentas de la Casa (${state.activeMonth}):\n\n${lines.join("\n")}`);
+    });
+
+    // Guardar Datos Banco Santander
+    document.getElementById("saveBankBtn").addEventListener("click", async () => {
+      state.bank = {
+        holder: document.getElementById("bankHolder").value.trim(),
+        rut: document.getElementById("bankRut").value.trim(),
+        bankName: document.getElementById("bankName").value.trim() || "Banco Santander",
+        accountType: document.getElementById("bankType").value.trim(),
+        accountNumber: document.getElementById("bankNumber").value.trim(),
+        email: document.getElementById("bankEmail").value.trim()
+      };
+      await persistState();
+      renderAll();
+      showToast("Datos de Banco Santander guardados");
+    });
+
+    // Modal Persona Extra
+    document.getElementById("openExtraModalBtn").addEventListener("click", () => {
+      document.getElementById("extraModal").classList.remove("hidden");
+    });
+    document.getElementById("closeExtraModalBtn").addEventListener("click", () => {
+      document.getElementById("extraModal").classList.add("hidden");
+    });
+    document.getElementById("addExtraBtn").addEventListener("click", async () => {
+      const inp = document.getElementById("newExtraName");
+      const name = inp.value.trim();
+      if (!name) return;
+      state.members.push({
+        id: "ext_" + Date.now(),
+        name,
+        isAdmin: false,
+        isExtra: true
+      });
+      inp.value = "";
+      await persistState();
+      renderAll();
+      showToast(`${name} agregado como persona extra`);
+    });
+
+    renderAll();
+    initCloudSync();
+  </script>
+</body>
+</html>
